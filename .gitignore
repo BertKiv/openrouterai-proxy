@@ -1,0 +1,35 @@
+# Ignoruj wygenerowane modele AI
+*.ckpt
+*.pb
+
+# Ignoruj dane treningowe
+data/
+
+# Ignoruj logi i artefakty treningu 
+logs/
+artifacts/
+
+# Ignoruj tymczasowe pliki środowiska
+.venv/
+
+# Ignoruj localne ustawienia
+.env
+OAI_CONFIG_LIST
+.models
+
+# Ignoruj wyjścia programów
+out/
+
+# Ignoruj duże pliki medialne
+media/
+audio/*
+video/*
+
+# Ignoruj konfiguracje IDE
+.vscode/
+.history/
+
+# Ignoruj Cache folders
+__pycache__/
+
+.DS_Store

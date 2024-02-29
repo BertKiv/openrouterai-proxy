@@ -1,0 +1,38 @@
+# Ignoruj zależności
+node_modules
+
+# Ignoruj dane treningowe
+data/
+
+# Ignoruj logi i artefakty
+logs/
+artifacts/
+
+# Ignoruj lokalne ustawienia środowiska
+.venv
+OAI_CONFIG_LIST
+
+# Ignoruj buforowane dane kontenera
+tmp/
+
+# Ignoruj konfiguracje IDE
+.vscode/
+.idea/
+.history/
+
+# Ignoruj duże pliki medialne
+media/
+audio/*
+video/*
+
+# Ignoruj wyjścia programów
+out/
+
+# Ignoruj zbędne warstwy dockera
+Dockerfile
+docker-compose.yml
+.dockerignore
+.gitignore
+
+# Ignoruj Cache folders
+__pycache__/
