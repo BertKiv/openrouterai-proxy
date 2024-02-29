@@ -1,4 +1,7 @@
 # app/proxy.py
+"""
+This module provides functionality for handling proxy operations.
+"""
 
 import json
 import os
@@ -6,26 +9,23 @@ import signal
 import sys
 import http.client
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Dict, Optional, List, Any, Tuple, Final
 from dotenv import load_dotenv
 
 load_dotenv()
 
-API_URL = os.getenv("OPENROUTER_API_BASE_URL")
-REFERER = os.getenv("REFERER")
-TITLE = os.getenv("TITLE")
+API_URL: Optional[str] = os.getenv("OPENROUTER_API_BASE_URL")
+REFERER: Optional[str] = os.getenv("REFERER")
+TITLE: Optional[str] = os.getenv("TITLE")
 
-# The models used for processing the requests which are changed when 429 error is received
-# You can add more models here or change the models in the MODELS variable
-MODELS = [
+MODELS: Final[List[str]] = [
     "google/gemma-7b-it:free",
     "mistralai/mistral-7b-instruct:free",
     "openchat/openchat-7b:free",
 ]
 
-# The fake model used by the client for processing the responses
-FAKE_MODEL = "fake_repo/fake_model"
-# Index of the currently used model
-current_model_index = 0
+FAKE_MODEL: Final[str] = "fake_repo/fake_model"
+current_model_index: int = 0
 
 
 class ProxyHandler(BaseHTTPRequestHandler):
@@ -35,7 +35,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
         API_URL: The base URL of the API to which the requests are forwarded.
         REFERER: The HTTP Referer header for outgoing requests.
         TITLE: The X-Title header for outgoing requests.
-        MODELS: The models used for processing the requests which are changed when 429 error is received.
+        MODELS: The models used for processing the requests 
+        which are changed when 429 error is received.
         FAKE_MODELS: The fake model used for processing the responses.
     Methods:
         create_headers: Creates the headers for the outgoing requests.
@@ -43,47 +44,66 @@ class ProxyHandler(BaseHTTPRequestHandler):
         do_POST: Handles the incoming POST requests.
     """
 
-    def handle_error_response(self, response):
+    def handle_error_response(self, response)-> Dict[str, str]:
+        """Handle different error responses from the API."""
+
         global current_model_index
 
         if response.status == 400:
             self.send_error_headers(400)
-            return {"message": "Bad Request (invalid or missing params, CORS)"}
-        elif response.status == 401:
+            message =  {
+                "message": "Bad Request (invalid or missing params, CORS)"
+            }
+        if response.status == 401:
             self.send_error_headers(401)
-            return {"message": "Invalid credentials (OAuth session expired, disabled/invalid API key)"}
-        elif response.status == 402:
+            message =  {
+                "message": "Invalid credentials (OAuth session expired, disabled/invalid API key)"
+            }
+        if response.status == 402:
             self.send_error_headers(402)
-            return {"message": "Your account or API key has insufficient credits. Add more credits and retry the request."}
-        elif response.status == 403:
+            message =  {
+                "message": "Your account or API key has insufficient credits. Add more credits and retry the request."
+            }
+        if response.status == 403:
             self.send_error_headers(403)
-            return {"message": "Your chosen model requires moderation and your input was flagged"}
-        elif response.status == 408:
+            message =  {
+                "message": "Your chosen model requires moderation and your input was flagged"
+            }
+        if response.status == 408:
             self.send_error_headers(408)
-            return {"message": "Your request timed out"}
-        elif response.status == 429:
-            current_model_index = (current_model_index + 1) % len(MODELS)  # Switch to the next model
-            return {"message": "You are being rate limited"}
-        elif response.status == 502:
+            message =  {
+                "message": "Your request timed out"
+            }
+        if response.status == 429:
+            current_model_index = (current_model_index + 1) % len(MODELS)
+            message =  {
+                "message": "You are being rate limited"
+            }
+        if response.status == 502:
             self.send_error_headers(502)
-            return {"message": "Your chosen model is down or we received an invalid response from it"}
-        elif response.status == 503:
+            message =  {
+                "message": "Your chosen model is down or we received an invalid response from it"
+            }
+        if response.status == 503:
             self.send_error_headers(503)
-            return {"message": "There is no available model provider that meets your routing requirements"}
-        else:
-            self.send_error_headers(500)
-            return {"message": "Unhandled error"}
-        
-    def send_error_headers(self, status_code):
+            message =  {
+                "message": "There is no available model provider that meets your routing requirements"
+            }
+        return message
+
+    def send_error_headers(self, status_code) -> None:
+        """Handle different error responses from the API."""
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
 
-    def create_headers(self, additional_headers=[]):
+    def create_headers(self, additional_headers=None) -> Dict[str, str]:
         """
-        Create headers with additional headers if provided and return the resulting headers dictionary.
+        Create headers with additional headers
+        if provided and return the resulting headers dictionary.
         Args:
-            additional_headers (list, optional): Additional headers to be added to the headers dictionary. Defaults to an empty list.
+            additional_headers (list, optional): Additional headers 
+            to be added to the headers dictionary. Defaults to an empty list.
         Returns:
             dict: The resulting headers dictionary.
         """
@@ -96,7 +116,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 headers[header] = self.headers[header]
         return headers
 
-    def forward_response(self, response):
+    def forward_response(self, response) -> None:
         """
         Send a custom JSON response with optional content length header.
         :param response: The response object to read and process.
@@ -116,10 +136,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
         self.wfile.write(json_response.encode("utf-8"))
 
-    def do_POST(self):
-        """
-        A method to handle POST requests. It reads the request data, processes it, sends a POST request to the specified API URL with the modified data, and handles the response.
-        """
+    def do_POST(self) -> None:
+        """Handle the incoming POST requests."""
         global current_model_index
 
         content_length = int(self.headers["Content-Length"])
@@ -152,30 +170,32 @@ class ProxyHandler(BaseHTTPRequestHandler):
             self.wfile.write(b'{"error": "Internal Server Error"}')
 
 
-def exit_handler(signal, frame):
+def exit_handler(signal, frame) -> None:
     """
     Handle the exit signal by printing a farewell message and exiting the program.
     :param signal: The signal number or name
     :param frame: The current stack frame at the point where the signal was raised
     :return: None
     """
-    print(f'\033[92m\n\n==> Bye!\033[0m\n\n')
+    print('\033[92m\n\n==> Bye!\033[0m\n\n')
     sys.exit(0)
 
 def run(
-    server_class=HTTPServer,
-    handler_class=ProxyHandler,
-    port=int(os.getenv("PORT", 8000)),
-):
+    server_class: Any = HTTPServer,
+    handler_class: Any = ProxyHandler,
+    port: int = int(os.getenv("PORT")),
+) -> None:
     """
     This function starts a server with the given server class, handler class, and port.
     It then prints the address the server is running on, before serving forever.
     """
+
     signal.signal(signal.SIGINT, exit_handler)
 
-    server_address = ("localhost", port)
-    httpd = server_class(server_address, handler_class)
-    print(f"\033[92m\n\n==> Starting PROXY SERVER on {server_address[0]} : {server_address[1]}.\n    Happy coding!\033[0m\n\n" )
+    server_address: Tuple[str, int] = ("localhost", port)
+    httpd: Any = server_class(server_address, handler_class)
+    server_info: str = f"\033[92m\n\n==> Starting PROXY SERVER on {server_address[0]}:{server_address[1]}.\n    Happy coding!\033[0m\n\n"
+    print(server_info)
     httpd.serve_forever()
 
 
