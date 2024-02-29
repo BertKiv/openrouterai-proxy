@@ -1,7 +1,7 @@
 # Openrouter.ai Proxy
 
 ## Description
-This Python application acts as a proxy server for [openrouter.ai](https://openrouter.ai), forwarding incoming HTTP requests to a specified API URL and processing the responses. It includes functionality to switch to alternative models when a 429 error is received, allowing you to utilize free-of-charge models for programming and testing purposes without incurring any costs.
+This Python application acts as a proxy server for [openrouter.ai](https://openrouter.ai), facilitating the forwarding of incoming HTTP requests to a specified API URL and managing the responses. Notably, it incorporates a feature enabling the automatic switching to alternative models in response to a 429 error, effectively bypassing rate limits and enabling the utilization of free-of-charge models for programming and testing purposes without incurring any expenses.
 
 ## Installation
 To install the application using Poetry, use the following steps:
