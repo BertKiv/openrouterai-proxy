@@ -44,7 +44,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
         do_POST: Handles the incoming POST requests.
     """
 
-    def handle_error_response(self, response)-> Dict[str, str]:
+    def handle_error_response(self, response : Any)-> Dict[str, str]:
         """Handle different error responses from the API."""
 
         global current_model_index
@@ -91,13 +91,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
             }
         return message
 
-    def send_error_headers(self, status_code) -> None:
+    def send_error_headers(self, status_code : int) -> None:
         """Handle different error responses from the API."""
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
 
-    def create_headers(self, additional_headers=None) -> Dict[str, str]:
+    def create_headers(self, additional_headers: List[str] = None) -> Dict[str, str]:
         """
         Create headers with additional headers
         if provided and return the resulting headers dictionary.
@@ -116,7 +116,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 headers[header] = self.headers[header]
         return headers
 
-    def forward_response(self, response) -> None:
+    def forward_response(self, response : Any) -> None:
         """
         Send a custom JSON response with optional content length header.
         :param response: The response object to read and process.
@@ -170,7 +170,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
             self.wfile.write(b'{"error": "Internal Server Error"}')
 
 
-def exit_handler(signal, frame) -> None:
+def exit_handler(signal: int, frame: Any) -> None:
     """
     Handle the exit signal by printing a farewell message and exiting the program.
     :param signal: The signal number or name
