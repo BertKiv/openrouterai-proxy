@@ -10,7 +10,7 @@ import sys
 import time
 import http.client
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Dict, Optional, List, Any, Tuple, Final
+from typing import Dict, Optional, List, Any, Tuple, Final, Literal
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -29,7 +29,6 @@ MODELS: Final[List[str]] = [
 ]
 
 FAKE_MODEL: Final[str] = "fake_repo/fake_model"
-current_model_index: int = 0
 
 
 class ProxyHandler(BaseHTTPRequestHandler):
@@ -42,59 +41,59 @@ class ProxyHandler(BaseHTTPRequestHandler):
         MODELS: The models used for processing the requests 
         which are changed when 429 error is received.
         FAKE_MODELS: The fake model used for processing the responses.
-    Methods:
-        create_headers: Creates the headers for the outgoing requests.
-        forward_response: Forwards the response from the API to the client.
-        do_POST: Handles the incoming POST requests.
     """
 
-    def handle_error_response(self, response : Any)-> Dict[str, str]:
+    API_URL: Optional[str] = API_URL
+    REFERER: Optional[str] = REFERER
+    TITLE: Optional[str] = TITLE
+    MODELS: Final[List[str]] = MODELS
+    FAKE_MODEL: Final[str] = FAKE_MODEL
+
+    current_model_index: int = 0
+
+    def handle_rate_limiting(self, sleep: int = 10) -> None:
+        """
+        A function to handle rate limiting with a specified time parameter.
+        Args:
+            sleep (int): The time to sleep, in seconds.
+        Returns:
+            None
+        """
+        time.sleep(sleep)
+        self.current_model_index = (self.current_model_index + 1) % len(self.MODELS)
+
+    def handle_error_response(self, response: Any) -> Dict[str, str]:
         """Handle different error responses from the API."""
 
-        global current_model_index
+        error_messages = {
+            400: "Bad Request (invalid or missing params, CORS)",
+            401: "Invalid credentials (OAuth session expired, disabled/invalid API key)",
+            402: "Your account or API key has insufficient credits. Add more credits and retry the request.",
+            403: "Your chosen model requires moderation and your input was flagged",
+            404: "Your chosen model is not available or BASE URL is invalid",
+            408: "Your request timed out",
+            429: "You are being rate limited",
+            500: "Internal Server Error",
+            501: "Your chosen model is not ready yet",
+            502: "Your chosen model is down or we received an invalid response from it",
+            503: "There is no available model provider that meets your routing requirements"
+        }
 
-        if response.status == 400:
-            self.send_error_headers(400)
-            message =  {
-                "message": "Bad Request (invalid or missing params, CORS)"
-            }
-        if response.status == 401:
-            self.send_error_headers(401)
-            message =  {
-                "message": "Invalid credentials (OAuth session expired, disabled/invalid API key)"
-            }
-        if response.status == 402:
-            self.send_error_headers(402)
-            message =  {
-                "message": "Your account or API key has insufficient credits. Add more credits and retry the request."
-            }
-        if response.status == 403:
-            self.send_error_headers(403)
-            message =  {
-                "message": "Your chosen model requires moderation and your input was flagged"
-            }
-        if response.status == 408:
-            self.send_error_headers(408)
-            message =  {
-                "message": "Your request timed out"
-            }
-        if response.status == 429:
-            # current_model_index = (current_model_index + 1) % len(MODELS)
-            time.sleep(10)
-            message =  {
-                "message": "You are being rate limited"
-            }
-        if response.status == 502:
+        status_code = response.status
+        message: str = ''
+        if status_code in error_messages:
+            self.send_error_headers(status_code)
+            message = {"message": error_messages[status_code]}
+            if status_code == 429:
+                self.handle_rate_limiting()
+        elif status_code >= 500:
             self.send_error_headers(502)
-            message =  {
-                "message": "Your chosen model is down or we received an invalid response from it"
-            }
-        if response.status == 503:
-            self.send_error_headers(503)
-            message =  {
-                "message": "There is no available model provider that meets your routing requirements"
-            }
+            message = {"message": "Internal Server Error"}
+        elif status_code != 200:
+            self.send_error_headers(400)
+            message = {"message": "Unknown error"}
         return message
+
 
     def send_error_headers(self, status_code : int) -> None:
         """Handle different error responses from the API."""
@@ -102,7 +101,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.end_headers()
 
-    def create_headers(self, additional_headers: List[str] = None) -> Dict[str, str]:
+
+    def create_headers(self, additional_headers: Optional[List[str]] = None) -> Dict[str, str]:
         """
         Create headers with additional headers
         if provided and return the resulting headers dictionary.
@@ -112,9 +112,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
         Returns:
             dict: The resulting headers dictionary.
         """
+        if additional_headers is None:
+            additional_headers = []
         headers = {
-            "HTTP-Referer": REFERER,
-            "X-Title": TITLE,
+            "HTTP-Referer": self.REFERER,
+            "X-Title": self.TITLE,
         }
         for header in additional_headers:
             if header in self.headers:
@@ -130,7 +132,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
         """
         response_data = response.read().decode("utf-8")
         json_data = json.loads(response_data)
-        json_data["model"] = FAKE_MODEL
+        json_data["model"] = self.FAKE_MODEL
         json_response = json.dumps(json_data)
         content_length = len(json_response.encode("utf-8"))
 
@@ -143,37 +145,29 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         """Handle the incoming POST requests."""
-        global current_model_index
 
         content_length = int(self.headers["Content-Length"])
         post_data = self.rfile.read(content_length)
         post_data = json.loads(post_data.decode("utf-8"))
-        post_data["model"] = MODELS[current_model_index]
-        print(f"\033[92m==> CURRENT MODEL: {post_data["model"]}\033[0m")
+        post_data["model"] = self.MODELS[self.current_model_index]
+        print(f"\033[92m==> CURRENT MODEL: {post_data['model']}\033[0m")
         post_data["temperature"] = 0
         post_data = json.dumps(post_data)
         headers = self.create_headers(["Accept", "User-Agent", "Authorization", "Content-Type"])
 
-        try:
-            connection = http.client.HTTPSConnection("openrouter.ai", "https")
-            connection.request("POST", f"{API_URL}{self.path}", body=post_data, headers=headers)
-            response = connection.getresponse()
+        connection = http.client.HTTPSConnection("openrouter.ai", "https")
+        connection.request("POST", f"{self.API_URL}{self.path}", body=post_data, headers=headers)
+        response = connection.getresponse()
 
-            # Check if we should switch to another model
-            if response.status == 429:  # Status code 429 means rate limit exceeded
-                self.handle_error_response(response)
-
-            if response.status != 200:
-                error = self.handle_error_response(response)
-                print(f"\033[91m==> ERROR number: {response.status}: {error["message"]}\033[0m" )
-            else:
-                self.forward_response(response)
-        except Exception as e:
-            print("\033[91m==> ERROR: \033[0m", e )
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(b'{"error": "Internal Server Error"}')
-
+        # Check if we should switch to another model
+        if response.status == 429:  # Status code 429 means rate limit exceeded
+            self.handle_error_response(response)
+        if response.status != 200:
+            error_message = self.handle_error_response(response)
+            print(f"\033[91m==> ERROR number: {response.status}: {error_message['message']}\033[0m" )
+            self.wfile.write(f'{{"error": "{error_message['message']}"}}'.encode())
+        else:    
+            self.forward_response(response)
 
 def exit_handler(signal: int, frame: Any) -> None:
     """

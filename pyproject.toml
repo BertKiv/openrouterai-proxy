@@ -13,6 +13,10 @@ asyncio = "^3.4.3"
 
 # Exclude the problematic package
 nvidia-nvjitlink-cu12 = { version = "12.3.101", allow-prereleases = false, optional = true }
+streamlit = "^1.31.1"
+
+[tool.poetry.group.dev.dependencies]
+watchdog = "^4.0.0"
 
 [build-system]
 requires = ["poetry-core"]
