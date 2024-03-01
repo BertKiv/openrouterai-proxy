@@ -13,7 +13,7 @@ To install the application using Poetry, use the following steps:
 5. Run the following command to install the application and its dependencies:
 
 ```bash
-poetry install
+poetry install --no-root
 ```
 
 ## Usage

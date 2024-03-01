@@ -7,6 +7,7 @@ import json
 import os
 import signal
 import sys
+import time
 import http.client
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Dict, Optional, List, Any, Tuple, Final
@@ -22,6 +23,9 @@ MODELS: Final[List[str]] = [
     "google/gemma-7b-it:free",
     "mistralai/mistral-7b-instruct:free",
     "openchat/openchat-7b:free",
+    "nousresearch/nous-capybara-7b:free",
+    "gryphe/mythomist-7b:free",
+    "huggingfaceh4/zephyr-7b-beta:free",
 ]
 
 FAKE_MODEL: Final[str] = "fake_repo/fake_model"
@@ -75,7 +79,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 "message": "Your request timed out"
             }
         if response.status == 429:
-            current_model_index = (current_model_index + 1) % len(MODELS)
+            # current_model_index = (current_model_index + 1) % len(MODELS)
+            time.sleep(10)
             message =  {
                 "message": "You are being rate limited"
             }
@@ -192,7 +197,7 @@ def run(
 
     signal.signal(signal.SIGINT, exit_handler)
 
-    server_address: Tuple[str, int] = ("localhost", port)
+    server_address: Tuple[str, int] = ("0.0.0.0", port)
     httpd: Any = server_class(server_address, handler_class)
     server_info: str = f"\033[92m\n\n==> Starting PROXY SERVER on {server_address[0]}:{server_address[1]}.\n    Happy coding!\033[0m\n\n"
     print(server_info)

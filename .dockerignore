@@ -33,6 +33,8 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 .gitignore
+.github
+
 
 # Ignoruj Cache folders
 __pycache__/

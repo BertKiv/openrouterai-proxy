@@ -8,11 +8,11 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
 python-dotenv = "^0.19.2"
-pyautogen = {extras = ["autobuild"], version = "^0.2.14"}
-pytest = "^8.0.1"
 requests = "^2.31.0"
 asyncio = "^3.4.3"
-pproxy = "^2.7.9"
+
+# Exclude the problematic package
+nvidia-nvjitlink-cu12 = { version = "12.3.101", allow-prereleases = false, optional = true }
 
 [build-system]
 requires = ["poetry-core"]
