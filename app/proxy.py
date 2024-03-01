@@ -1,8 +1,4 @@
-# app/proxy.py
-"""
-This module provides functionality for handling proxy operations.
-"""
-
+import requests
 import json
 import os
 import signal
@@ -11,95 +7,32 @@ import time
 import http.client
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Dict, Optional, List, Any, Tuple, Final, Literal
+from errors import Errors
 from dotenv import load_dotenv
 
 load_dotenv()
 
-API_URL: Optional[str] = os.getenv("OPENROUTER_API_BASE_URL")
-REFERER: Optional[str] = os.getenv("REFERER")
-TITLE: Optional[str] = os.getenv("TITLE")
-
-MODELS: Final[List[str]] = [
-    "google/gemma-7b-it:free",
-    "mistralai/mistral-7b-instruct:free",
-    "openchat/openchat-7b:free",
-    "nousresearch/nous-capybara-7b:free",
-    "gryphe/mythomist-7b:free",
-    "huggingfaceh4/zephyr-7b-beta:free",
-]
-
-FAKE_MODEL: Final[str] = "fake_repo/fake_model"
 
 
 class ProxyHandler(BaseHTTPRequestHandler):
     """
     Handles the incoming HTTP requests and forwards them to the specified API_URL.
-    Attributes:
-        API_URL: The base URL of the API to which the requests are forwarded.
-        REFERER: The HTTP Referer header for outgoing requests.
-        TITLE: The X-Title header for outgoing requests.
-        MODELS: The models used for processing the requests 
-        which are changed when 429 error is received.
-        FAKE_MODELS: The fake model used for processing the responses.
     """
 
-    API_URL: Optional[str] = API_URL
-    REFERER: Optional[str] = REFERER
-    TITLE: Optional[str] = TITLE
-    MODELS: Final[List[str]] = MODELS
-    FAKE_MODEL: Final[str] = FAKE_MODEL
+    API_URL: Optional[str] = os.environ["OPENROUTER_API_BASE_URL"]
+    REFERER: Optional[str] = os.environ["REFERER"]
+    TITLE: Optional[str] = os.environ["TITLE"]
 
-    current_model_index: int = 0
+    MODELS: Final[List[str]] = [
+        "google/gemma-7b-it:free",
+        "mistralai/mistral-7b-instruct:free",
+        "openchat/openchat-7b:free",
+        "nousresearch/nous-capybara-7b:free",
+        "gryphe/mythomist-7b:free",
+        "huggingfaceh4/zephyr-7b-beta:free",
+    ]
 
-    def handle_rate_limiting(self, sleep: int = 10) -> None:
-        """
-        A function to handle rate limiting with a specified time parameter.
-        Args:
-            sleep (int): The time to sleep, in seconds.
-        Returns:
-            None
-        """
-        time.sleep(sleep)
-        self.current_model_index = (self.current_model_index + 1) % len(self.MODELS)
-
-    def handle_error_response(self, response: Any) -> Dict[str, str]:
-        """Handle different error responses from the API."""
-
-        error_messages = {
-            400: "Bad Request (invalid or missing params, CORS)",
-            401: "Invalid credentials (OAuth session expired, disabled/invalid API key)",
-            402: "Your account or API key has insufficient credits. Add more credits and retry the request.",
-            403: "Your chosen model requires moderation and your input was flagged",
-            404: "Your chosen model is not available or BASE URL is invalid",
-            408: "Your request timed out",
-            429: "You are being rate limited",
-            500: "Internal Server Error",
-            501: "Your chosen model is not ready yet",
-            502: "Your chosen model is down or we received an invalid response from it",
-            503: "There is no available model provider that meets your routing requirements"
-        }
-
-        status_code = response.status
-        message: str = ''
-        if status_code in error_messages:
-            self.send_error_headers(status_code)
-            message = {"message": error_messages[status_code]}
-            if status_code == 429:
-                self.handle_rate_limiting()
-        elif status_code >= 500:
-            self.send_error_headers(502)
-            message = {"message": "Internal Server Error"}
-        elif status_code != 200:
-            self.send_error_headers(400)
-            message = {"message": "Unknown error"}
-        return message
-
-
-    def send_error_headers(self, status_code : int) -> None:
-        """Handle different error responses from the API."""
-        self.send_response(status_code)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
+    FAKE_MODEL: Final[str] = "fake_repo/fake_model"
 
 
     def create_headers(self, additional_headers: Optional[List[str]] = None) -> Dict[str, str]:
@@ -155,16 +88,15 @@ class ProxyHandler(BaseHTTPRequestHandler):
         post_data = json.dumps(post_data)
         headers = self.create_headers(["Accept", "User-Agent", "Authorization", "Content-Type"])
 
-        connection = http.client.HTTPSConnection("openrouter.ai", "https")
-        connection.request("POST", f"{self.API_URL}{self.path}", body=post_data, headers=headers)
-        response = connection.getresponse()
+        response = requests.post(f"{self.API_URL}{self.path}", json=post_data, headers=headers)
+        errors = Errors(response).handle_error_response()
 
         # Check if we should switch to another model
-        if response.status == 429:  # Status code 429 means rate limit exceeded
-            self.handle_error_response(response)
-        if response.status != 200:
-            error_message = self.handle_error_response(response)
-            print(f"\033[91m==> ERROR number: {response.status}: {error_message['message']}\033[0m" )
+        if response.status_code == 429:  # Status code 429 means rate limit exceeded
+            errors.handle_error_response()
+        if response.status_code != 200:
+            error_message = errors.handle_error_response()
+            print(f"\033[91m==> ERROR number: {response.status_code}: {error_message['message']}\033[0m" )
             self.wfile.write(f'{{"error": "{error_message['message']}"}}'.encode())
         else:    
             self.forward_response(response)
@@ -182,7 +114,7 @@ def exit_handler(signal: int, frame: Any) -> None:
 def run(
     server_class: Any = HTTPServer,
     handler_class: Any = ProxyHandler,
-    port: int = int(os.getenv("PORT")),
+    port: int = int(os.environ["PORT"]),
 ) -> None:
     """
     This function starts a server with the given server class, handler class, and port.
