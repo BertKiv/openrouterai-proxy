@@ -45,12 +45,17 @@ Here is an example for the AutoGen Studio model where proxy is running on OrbSta
 
 ## TODO
 
-<input type="checkbox">&nbsp;&nbsp; Authorization via Bearer Token</input>
+<input type="checkbox" style="color: black;">&nbsp;&nbsp; Authorization via Bearer Token</input>
 
-<input type="checkbox">&nbsp;&nbsp; Logging</input>
+<input type="checkbox" style="color: black;">&nbsp;&nbsp; Logging</input>
 
-<input type="checkbox">&nbsp;&nbsp; Statistics</input>
+<input type="checkbox" style="color: black;">&nbsp;&nbsp; Statistics</input>
 
-<input type="checkbox">&nbsp;&nbsp; Multiuser</input>
+<input type="checkbox" style="color: black;">&nbsp;&nbsp; Multiuser</input>
 
-<input type="checkbox">&nbsp;&nbsp; UI</input>
+<input type="checkbox" style="color: black;">&nbsp;&nbsp; UI</input>
+
+
+## License
+
+This application is distributed under the MIT license.
