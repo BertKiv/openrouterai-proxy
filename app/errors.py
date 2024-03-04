@@ -1,7 +1,8 @@
 import time
-from typing import Dict, Any
-class Errors:
-    def __init__(self, response) -> None:
+from typing import Dict
+from fastapi import Response
+class ErrorsHandler:
+    def __init__(self, response: Response) -> None:
         self.error_messages = {
             400: "Bad Request (invalid or missing params, CORS)",
             401: "Invalid credentials (OAuth session expired, disabled/invalid API key)",
@@ -17,13 +18,11 @@ class Errors:
         }
         self.message: str = ''
         self.response = response
-        self.status_code = response.status
+        self.status_code = response.status_code
 
-    def send_error_headers(self) -> None:
+    def send_error_headers(self, status_code: int) -> None:
         """Handle different error responses from the API."""
-        self.send_response(self.status_code)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
+        self.response.status_code = status_code
 
     def handle_rate_limiting(self, sleep: int = 10) -> None:
         """

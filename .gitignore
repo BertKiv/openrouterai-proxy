@@ -11,6 +11,7 @@ artifacts/
 
 # Ignoruj tymczasowe pliki środowiska
 .venv/
+poetry.lock
 
 # Ignoruj localne ustawienia
 .env
