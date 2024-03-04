@@ -22,15 +22,35 @@ poetry install --no-root --no-dev
 
 This application can also be run using Docker, which can simplify the setup process and ensure consistent execution across different environments. Here are the steps to run the application using Docker:
 
-1. Make sure Docker is installed on your system. 
+1. Make sure Docker is installed on your system.
 If not, you can install it using the instructions from Docker's [official documentation](https://docs.docker.com/install/).
 
-2. Build the Docker image for the application by running the following command in the directory containing the Dockerfile:
+2. Run the Docker Compose Stack for the application by running the following command in the directory containing the docker-compose.yml file:
+
 ```bash
-docker build -t openrouter-proxy .
+docker compose up -d --build
 ```
 
-3. Run the Docker container using the following command:
+## Usage
+
+To use the application, simply run docker compose and set BASE URL of free openrouter model in Base URL field or environment variable like that:
+
 ```bash
-docker run -p 9999:9999 openrouter-proxy
+http(s)://[IP ADDRESS or domain.tld or localhost]:[PORT or 9999]
 ```
+
+Here is an example for the AutoGen Studio model where proxy is running on OrbStack on localhost:
+
+![autoGen](./example.png)
+
+## TODO
+
+<input type="checkbox">&nbsp;&nbsp; Authorization via Bearer Token</input>
+
+<input type="checkbox">&nbsp;&nbsp; Logging</input>
+
+<input type="checkbox">&nbsp;&nbsp; Statistics</input>
+
+<input type="checkbox">&nbsp;&nbsp; Multiuser</input>
+
+<input type="checkbox">&nbsp;&nbsp; UI</input>
